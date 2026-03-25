@@ -1,0 +1,123 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: /users/{userId}
+    // Fields:
+    //   - uid: string (required) - Firebase Auth UID
+    //   - email: string (required, email format) - User's email address
+    //   - role: string (required, enum: ["Admin", "Coordinator"]) - User's role
+    //   - displayName: string (optional) - User's display name
+    //
+    // Collection: /students/{studentId}
+    // Fields:
+    //   - name: string (required) - Full name
+    //   - regNumber: string (required) - Registration number
+    //   - program: string (required, enum: ["PGD", "MSc", "MPhil", "PhD"]) - Degree program
+    //   - email: string (required, email format) - Student's email
+    //   - supervisor: string (required) - Primary supervisor
+    //   - coSupervisor: string (optional) - Optional co-supervisor
+    //   - joinedDate: string (required, date format) - Date joined
+    //   - status: string (required, enum: ["Active", "Alumni"]) - Current status
+    //   - createdBy: string (required) - UID of the creator
+    //
+    // Collection: /students/{studentId}/presentations/{presentationId}
+    // Fields:
+    //   - studentId: string (required) - ID of the student
+    //   - stage: string (required) - Presentation stage
+    //   - status: string (required, enum: ["Scheduled", "Completed", "Pending"]) - Status
+    //   - date: string (optional, date format) - Scheduled date
+    //   - time: string (optional) - Scheduled time
+    //   - venue: string (optional) - Scheduled venue
+    //   - documentLink: string (optional, uri format) - Link to document
+    //   - score: string (optional) - Score or grade
+    //   - remarks: string (optional) - Remarks
+    //   - updatedBy: string (required) - UID of the updater
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && 
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin' ||
+         (request.auth.token.email == "dapoadeduro@gmail.com" && request.auth.token.email_verified == true));
+    }
+
+    function isCoordinator() {
+      return isAuthenticated() && 
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Coordinator' || isAdmin());
+    }
+
+    function isValidEmail(email) {
+      return email is string && email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    }
+
+    function isValidDate(dateStr) {
+      return dateStr is string && dateStr.matches("^\\d{4}-\\d{2}-\\d{2}.*");
+    }
+
+    // ===============================================================
+    // Validation Functions
+    // ===============================================================
+    function isValidUser(data) {
+      return data.uid is string && data.uid == request.auth.uid &&
+             isValidEmail(data.email) &&
+             data.role in ["Admin", "Coordinator"];
+    }
+
+    function isValidStudent(data) {
+      return data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
+             data.regNumber is string && data.regNumber.size() > 0 &&
+             data.program in ["PGD", "MSc", "MPhil", "PhD"] &&
+             isValidEmail(data.email) &&
+             data.supervisor is string && data.supervisor.size() > 0 &&
+             isValidDate(data.joinedDate) &&
+             data.status in ["Active", "Alumni"] &&
+             data.createdBy == request.auth.uid;
+    }
+
+    function isValidPresentation(data) {
+      return data.studentId is string &&
+             data.stage is string && data.stage.size() > 0 &&
+             data.status in ["Scheduled", "Completed", "Pending"] &&
+             data.updatedBy == request.auth.uid;
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow create: if isOwner(userId) && isValidUser(request.resource.data);
+      allow update: if isOwner(userId) && isValidUser(request.resource.data) && 
+                      request.resource.data.role == resource.data.role; // Cannot self-promote
+    }
+
+    match /students/{studentId} {
+      allow read: if isAuthenticated();
+      allow create: if isCoordinator() && isValidStudent(request.resource.data);
+      allow update: if isCoordinator() && isValidStudent(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    match /students/{studentId}/presentations/{presentationId} {
+      allow read: if isAuthenticated();
+      allow create: if isCoordinator() && isValidPresentation(request.resource.data);
+      allow update: if isCoordinator() && isValidPresentation(request.resource.data);
+      allow delete: if isAdmin();
+    }
+  }
+}

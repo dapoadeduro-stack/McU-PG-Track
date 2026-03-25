@@ -1,0 +1,17 @@
+@import "tailwindcss";
+
+@layer base {
+  @media print {
+    aside, header, .print-hidden {
+      display: none !important;
+    }
+    main {
+      margin-left: 0 !important;
+      padding: 0 !important;
+    }
+    .Card {
+      box-shadow: none !important;
+      border: none !important;
+    }
+  }
+}

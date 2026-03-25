@@ -1,0 +1,65 @@
+{
+  "entities": {
+    "Student": {
+      "title": "Student",
+      "description": "A postgraduate student enrolled in a program.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "description": "Full name of the student." },
+        "regNumber": { "type": "string", "description": "Registration number." },
+        "program": { "type": "string", "enum": ["PGD", "MSc", "MPhil", "PhD"], "description": "Degree program." },
+        "email": { "type": "string", "format": "email", "description": "Student's email address." },
+        "supervisor": { "type": "string", "description": "Primary supervisor." },
+        "coSupervisor": { "type": "string", "description": "Optional co-supervisor." },
+        "joinedDate": { "type": "string", "format": "date", "description": "Date the student joined the program." },
+        "status": { "type": "string", "enum": ["Active", "Alumni"], "description": "Current status of the student." },
+        "createdBy": { "type": "string", "description": "UID of the user who added the student." }
+      },
+      "required": ["name", "regNumber", "program", "email", "supervisor", "joinedDate", "status"]
+    },
+    "Presentation": {
+      "title": "Presentation",
+      "description": "A seminar or defense presentation by a student.",
+      "type": "object",
+      "properties": {
+        "studentId": { "type": "string", "description": "ID of the student." },
+        "stage": { "type": "string", "description": "Presentation stage (e.g., Proposal, Viva)." },
+        "status": { "type": "string", "enum": ["Scheduled", "Completed", "Pending"], "description": "Current status of the presentation." },
+        "date": { "type": "string", "format": "date", "description": "Scheduled date." },
+        "time": { "type": "string", "description": "Scheduled time." },
+        "venue": { "type": "string", "description": "Scheduled venue." },
+        "documentLink": { "type": "string", "format": "uri", "description": "Link to presentation document." },
+        "score": { "type": "string", "description": "Score or grade received." },
+        "remarks": { "type": "string", "description": "Administrative or supervisor remarks." },
+        "updatedBy": { "type": "string", "description": "UID of the user who last updated the record." }
+      },
+      "required": ["studentId", "stage", "status"]
+    },
+    "User": {
+      "title": "User",
+      "description": "A staff member or coordinator using the portal.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "Firebase Auth UID." },
+        "email": { "type": "string", "format": "email", "description": "User's email address." },
+        "role": { "type": "string", "enum": ["Admin", "Coordinator"], "description": "User's role in the system." },
+        "displayName": { "type": "string", "description": "User's display name." }
+      },
+      "required": ["uid", "email", "role"]
+    }
+  },
+  "firestore": {
+    "/students/{studentId}": {
+      "schema": "Student",
+      "description": "Collection of postgraduate students."
+    },
+    "/students/{studentId}/presentations/{presentationId}": {
+      "schema": "Presentation",
+      "description": "Subcollection of presentations for a specific student."
+    },
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profiles and roles."
+    }
+  }
+}
